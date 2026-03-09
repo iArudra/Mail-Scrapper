@@ -107,7 +107,7 @@ if not df.empty:
 
     # Emails per day
     st.subheader("Emails Over Time")
-    filtered_df['created_at_dt'] = pd.to_datetime(filtered_df['created_at'])
+    filtered_df['created_at_dt'] = pd.to_datetime(filtered_df['created_at'], format='ISO8601', utc=True)
     daily_counts = filtered_df.groupby(filtered_df['created_at_dt'].dt.date).size().reset_index(name='count')
     fig_time = px.line(daily_counts, x='created_at_dt', y='count', markers=True)
     st.plotly_chart(fig_time, width='stretch')

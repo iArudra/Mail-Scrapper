@@ -17,7 +17,7 @@ test_emails = [
         "confidence": 0.98,
         "suggested_reply": "Hello John, we are sorry to hear you're having trouble. Please try resetting your password using the 'Forgot Password' link.",
         "status": "Open",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.utcnow().isoformat() + "Z"
     },
     {
         "message_id": "msg_002",
@@ -31,7 +31,7 @@ test_emails = [
         "confidence": 0.95,
         "suggested_reply": "Hello Jane, we've identified the double charge and have initiated a refund for the extra amount.",
         "status": "Open",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.utcnow().isoformat() + "Z"
     },
     {
         "message_id": "msg_003",
@@ -45,7 +45,7 @@ test_emails = [
         "confidence": 0.90,
         "suggested_reply": "Hello Bob, thank you for the suggestion! We've added Dark Mode to our roadmap.",
         "status": "Open",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.utcnow().isoformat() + "Z"
     }
 ]
 
