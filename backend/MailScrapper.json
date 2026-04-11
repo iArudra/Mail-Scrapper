@@ -1,0 +1,219 @@
+{
+  "name": "MailScrapper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 12
+            },
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -448,
+        -128
+      ],
+      "id": "48a156c8-7bf4-44a0-9acd-1da727d5aa5c",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -304,
+        -128
+      ],
+      "id": "ba38dfa9-01e0-437d-b2a3-cd886431b312",
+      "name": "Get many messages",
+      "webhookId": "aa49ca5a-f22c-4c05-9fac-cf2513de092e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "oKLbbQHsHr2tZXEL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an AI system that analyzes support emails and prepares structured data for a support dashboard.\n\nYour job is to:\n\n1. Understand the email.\n2. Categorize the problem.\n3. Determine the priority.\n4. Detect customer sentiment.\n5. Generate a professional support reply suggestion.\n\nYou must ONLY return valid JSON.\n\nDo not include explanations, comments, markdown, or extra text.\n\n------------------------------------\n\nEMAIL SUBJECT:\n{{ $json.Subject }}\nEMAIL BODY:\n{{ $json.snippet }}\nSENDER:\n{{ $json.From }}\n------------------------------------\n\nAnalyze the email and determine:\n\ncategory → Short label describing the issue  \npriority → Low, Medium, or High  \nsentiment → Positive, Neutral, or Negative  \nconfidence → number between 0 and 1 showing classification confidence  \n\nAlso generate a **professional customer support reply** that:\n\n• is polite and professional  \n• acknowledges the problem  \n• suggests a next step or solution  \n• stays under 120 words  \n\n------------------------------------\n\nReturn JSON in EXACTLY this format:\n\n{\n  \"category\": \"string\",\n  \"priority\": \"Low | Medium | High\",\n  \"sentiment\": \"Positive | Neutral | Negative\",\n  \"confidence\": 0.0,\n  \"suggested_reply\": \"string\"\n}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        -128
+      ],
+      "id": "875ba9da-7cf1-4930-ac4d-d0641299f0c0",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "WzHHbFmmPQGdgWIA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.20.33.114:8000/emails",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=message_id",
+              "value": "={{ $('Get many messages').item.json.id }}"
+            },
+            {
+              "name": "thread_id",
+              "value": "={{ $('Get many messages').item.json.threadId }}"
+            },
+            {
+              "name": "sender",
+              "value": "={{ $('Get many messages').item.json.From }}"
+            },
+            {
+              "name": "subject",
+              "value": "={{ $('Get many messages').item.json.Subject }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Get many messages').item.json.snippet }}"
+            },
+            {
+              "name": "category",
+              "value": "={{ $json.category }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.priority }}"
+            },
+            {
+              "name": "sentiment",
+              "value": "={{ $json.sentiment }}"
+            },
+            {
+              "name": "confidence",
+              "value": "={{ $json.confidence }}"
+            },
+            {
+              "name": "suggested_reply",
+              "value": "={{ $json.suggested_reply }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $json.status }}"
+            },
+            {
+              "name": "created_at",
+              "value": "={{ $json.created_at }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        -128
+      ],
+      "id": "f15c96fe-ce99-43d3-8ef2-5c5310be78ff",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n\n  const raw = item.json.content.parts[0].text;\n\n  const cleaned = raw\n    .replace(/```json/g, \"\")\n    .replace(/```/g, \"\")\n    .trim();\n\n  const ai = JSON.parse(cleaned);\n\n  return {\n    json: {\n      message_id: item.json.id,\n      thread_id: item.json.threadId,\n      sender: item.json.from,\n      subject: item.json.subject,\n      body: item.json.textPlain || item.json.snippet,\n\n      category: ai.category,\n      priority: ai.priority,\n      sentiment: ai.sentiment,\n      confidence: ai.confidence,\n      suggested_reply: ai.suggested_reply,\n\n      status: \"Open\",\n      created_at: new Date().toISOString()\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -128
+      ],
+      "id": "aa653c2a-ff00-48dd-9929-9642ac760513",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bda26c7c-37f0-4c92-91c6-d84e39a1aa2d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "803e2fc5d4271857b0f718b38bfdc44250c2d0f42f949d869af24b10e7488dbc"
+  },
+  "id": "BgN5O63C6DtE4qtb",
+  "tags": []
+}
